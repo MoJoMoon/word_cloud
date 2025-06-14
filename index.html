@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Wordcloud Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        #wordInput {
+            flex: 1;
+            min-width: 200px;
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        #wordInput:focus {
+            border-color: #667eea;
+        }
+
+        button {
+            padding: 12px 25px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        #clearBtn {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+        }
+
+        #clearBtn:hover {
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .word-list {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            min-height: 50px;
+        }
+
+        .word-tag {
+            display: inline-block;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 5px 12px;
+            margin: 3px;
+            border-radius: 15px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+        }
+
+        .word-tag:hover {
+            opacity: 0.8;
+        }
+
+        #wordcloud {
+            min-height: 600px;
+            background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 50%, #ddeeff 100%);
+            border-radius: 25px;
+            padding: 40px;
+            box-shadow: inset 0 2px 20px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+            border: 3px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .word-cloud-item {
+            position: absolute;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.3s ease;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .word-cloud-item:hover {
+            transform: scale(1.1);
+            z-index: 10;
+        }
+
+        .instructions {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            #wordInput {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 AI Wordcloud Generator</h1>
+        
+        <p class="instructions">
+            Ask your students: "What's the first word or phrase that comes to mind when you think of AI?"<br>
+            <small>Words will arrange themselves into a robot shape! 🤖</small>
+        </p>
+        
+        <div class="controls">
+            <input type="text" id="wordInput" placeholder="Enter a word or phrase..." />
+            <button onclick="addWord()">Add Word</button>
+            <button id="clearBtn" onclick="clearAll()">Clear All</button>
+        </div>
+        
+        <div class="word-list" id="wordList">
+            <em>Words will appear here as you add them...</em>
+        </div>
+        
+        <div id="wordcloud"></div>
+    </div>
+
+    <script>
+        let words = [];
+        const colors = [
+            '#E62431', '#907CB4', '#F5B11A', '#A1BF8C', '#046C98', 
+            '#EA6D24', '#7C3A73', '#333333'
+        ];
+
+        function addWord() {
+            const input = document.getElementById('wordInput');
+            const word = input.value.trim();
+            
+            if (word && !words.some(w => w.text.toLowerCase() === word.toLowerCase())) {
+                words.push({
+                    text: word,
+                    count: 1,
+                    color: colors[Math.floor(Math.random() * colors.length)]
+                });
+                input.value = '';
+                updateDisplay();
+            } else if (word) {
+                // If word exists, increase its count
+                const existingWord = words.find(w => w.text.toLowerCase() === word.toLowerCase());
+                if (existingWord) {
+                    existingWord.count++;
+                    input.value = '';
+                    updateDisplay();
+                }
+            }
+        }
+
+        function removeWord(index) {
+            words.splice(index, 1);
+            updateDisplay();
+        }
+
+        function clearAll() {
+            words = [];
+            updateDisplay();
+        }
+
+        function updateDisplay() {
+            updateWordList();
+            updateWordcloud();
+        }
+
+        function updateWordList() {
+            const wordList = document.getElementById('wordList');
+            if (words.length === 0) {
+                wordList.innerHTML = '<em>Words will appear here as you add them...</em>';
+                return;
+            }
+            
+            wordList.innerHTML = words.map((word, index) => 
+                `<span class="word-tag" onclick="removeWord(${index})" title="Click to remove">
+                    ${word.text} ${word.count > 1 ? `(${word.count})` : ''}
+                </span>`
+            ).join('');
+        }
+
+        function isInsideCloudShape(x, y, width, height) {
+            const centerX = width / 2;
+            const centerY = height / 2;
+            
+            // Scale factors for robot proportions
+            const scale = Math.min(width, height) / 400;
+            
+            // Robot head (circle at top)
+            const headRadius = 60 * scale;
+            const headCenterY = centerY - 80 * scale;
+            const headDistance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - headCenterY, 2));
+            
+            // Robot body (rounded rectangle)
+            const bodyWidth = 100 * scale;
+            const bodyHeight = 120 * scale;
+            const bodyTop = centerY - 20 * scale;
+            const bodyBottom = bodyTop + bodyHeight;
+            const bodyLeft = centerX - bodyWidth / 2;
+            const bodyRight = centerX + bodyWidth / 2;
+            
+            // Robot arms (rectangles on sides)
+            const armWidth = 20 * scale;
+            const armHeight = 80 * scale;
+            const armTop = centerY - 10 * scale;
+            const armBottom = armTop + armHeight;
+            
+            // Left arm
+            const leftArmLeft = bodyLeft - armWidth - 5 * scale;
+            const leftArmRight = bodyLeft - 5 * scale;
+            
+            // Right arm
+            const rightArmLeft = bodyRight + 5 * scale;
+            const rightArmRight = bodyRight + armWidth + 5 * scale;
+            
+            // Robot legs (rectangles at bottom)
+            const legWidth = 25 * scale;
+            const legHeight = 60 * scale;
+            const legTop = bodyBottom + 5 * scale;
+            const legBottom = legTop + legHeight;
+            
+            // Left leg
+            const leftLegLeft = centerX - bodyWidth / 4 - legWidth / 2;
+            const leftLegRight = leftLegLeft + legWidth;
+            
+            // Right leg
+            const rightLegLeft = centerX + bodyWidth / 4 - legWidth / 2;
+            const rightLegRight = rightLegLeft + legWidth;
+            
+            // Check if point is inside head (circle)
+            if (headDistance <= headRadius) {
+                return true;
+            }
+            
+            // Check if point is inside body (rounded rectangle with some tolerance)
+            if (x >= bodyLeft && x <= bodyRight && y >= bodyTop && y <= bodyBottom) {
+                return true;
+            }
+            
+            // Check if point is inside left arm
+            if (x >= leftArmLeft && x <= leftArmRight && y >= armTop && y <= armBottom) {
+                return true;
+            }
+            
+            // Check if point is inside right arm
+            if (x >= rightArmLeft && x <= rightArmRight && y >= armTop && y <= armBottom) {
+                return true;
+            }
+            
+            // Check if point is inside left leg
+            if (x >= leftLegLeft && x <= leftLegRight && y >= legTop && y <= legBottom) {
+                return true;
+            }
+            
+            // Check if point is inside right leg
+            if (x >= rightLegLeft && x <= rightLegRight && y >= legTop && y <= legBottom) {
+                return true;
+            }
+            
+            return false;
+        }
+
+        function updateWordcloud() {
+            const cloudContainer = document.getElementById('wordcloud');
+            cloudContainer.innerHTML = '';
+            
+            if (words.length === 0) return;
+
+            const containerRect = cloudContainer.getBoundingClientRect();
+            const containerWidth = containerRect.width - 60;
+            const containerHeight = Math.max(500, containerRect.height - 60);
+            
+            // Sort words by count (descending) for better placement
+            const sortedWords = [...words].sort((a, b) => b.count - a.count);
+            
+            sortedWords.forEach((word, index) => {
+                const wordElement = document.createElement('div');
+                wordElement.className = 'word-cloud-item';
+                wordElement.textContent = word.text;
+                wordElement.style.color = word.color;
+                
+                // Dramatically scale size based on count
+                const maxCount = Math.max(...words.map(w => w.count));
+                const minSize = 14;
+                const maxSize = 80;
+                const sizeRange = maxSize - minSize;
+                
+                // Exponential scaling for more dramatic size differences
+                const normalizedCount = Math.log(word.count) / Math.log(maxCount);
+                const fontSize = minSize + (sizeRange * Math.pow(normalizedCount, 0.7));
+                
+                wordElement.style.fontSize = fontSize + 'px';
+                wordElement.style.fontWeight = word.count > 1 ? 'bold' : 'normal';
+                
+                // Try to position within cloud shape
+                let attempts = 0;
+                let positioned = false;
+                
+                while (!positioned && attempts < 100) {
+                    const x = Math.random() * containerWidth;
+                    const y = Math.random() * containerHeight;
+                    
+                    // Check if position is within cloud shape
+                    if (isInsideCloudShape(x, y, containerWidth, containerHeight)) {
+                        wordElement.style.left = x + 'px';
+                        wordElement.style.top = y + 'px';
+                        
+                        cloudContainer.appendChild(wordElement);
+                        
+                        // Check for overlaps with existing words
+                        const currentRect = wordElement.getBoundingClientRect();
+                        let overlapping = false;
+                        
+                        const existingWords = cloudContainer.querySelectorAll('.word-cloud-item');
+                        for (let i = 0; i < existingWords.length - 1; i++) {
+                            const existingRect = existingWords[i].getBoundingClientRect();
+                            const padding = 5;
+                            if (!(currentRect.right + padding < existingRect.left || 
+                                  currentRect.left - padding > existingRect.right || 
+                                  currentRect.bottom + padding < existingRect.top || 
+                                  currentRect.top - padding > existingRect.bottom)) {
+                                overlapping = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!overlapping) {
+                            positioned = true;
+                        } else {
+                            cloudContainer.removeChild(wordElement);
+                        }
+                    }
+                    attempts++;
+                }
+                
+                // If we couldn't find a good position within cloud shape, place it anyway
+                if (!positioned) {
+                    let x, y;
+                    do {
+                        x = Math.random() * containerWidth;
+                        y = Math.random() * containerHeight;
+                    } while (!isInsideCloudShape(x, y, containerWidth, containerHeight) && attempts < 150);
+                    
+                    wordElement.style.left = x + 'px';
+                    wordElement.style.top = y + 'px';
+                    cloudContainer.appendChild(wordElement);
+                }
+                
+                // Add entrance animation with staggered timing
+                setTimeout(() => {
+                    wordElement.style.opacity = '1';
+                    wordElement.style.transform = 'scale(1)';
+                }, index * 150);
+                
+                wordElement.style.opacity = '0';
+                wordElement.style.transform = 'scale(0.5)';
+                wordElement.style.transition = 'all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+            });
+        }
+
+        // Allow Enter key to add words
+        document.getElementById('wordInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addWord();
+            }
+        });
+
+        // Initial display
+        updateDisplay();
+    </script>
+</body>
+</html>
